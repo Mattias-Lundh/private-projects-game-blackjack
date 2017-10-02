@@ -13,6 +13,8 @@ namespace ConsoleApp1
         static void Main(string[] args)
         {
 
+
+
             Display.Heading();
             Console.WriteLine("Press any Key to start");
             Console.ReadKey();
@@ -359,6 +361,7 @@ namespace ConsoleApp1
         }
         public void GetReady(Game game)
         {
+            game.CurrentPlayer = 1;
             string output = "";
             foreach (Player player in game.Participants)
             {
@@ -424,19 +427,22 @@ namespace ConsoleApp1
 
         public bool InsuranceEvent(Game game)
         {
-            if (game.Participants[0].Hands[0][1].Value == 1)
+            if (game.Participants[0].Hands[0][1].Value == 1 || game.Participants[0].Hands[0][1].Points == 10)
             {
                 Console.WriteLine("O oh, the dealer might have a Black Jack");
 
                 foreach (Player player in game.Participants)
                 {
-                    try
+                    if (player.Position != 0)
                     {
-                        player.Insurance = OfferInsurance(player);
-                    }
-                    catch (InsufficientFundsException)
-                    {
-                        Console.WriteLine("You dont have enough credits");
+                        try
+                        {
+                            player.Insurance = OfferInsurance(player);
+                        }
+                        catch (InsufficientFundsException)
+                        {
+                            Console.WriteLine("You dont have enough credits");
+                        }
                     }
                 }
                 if (game.Participants[0].EvaluateHand(0) == 21.5)
@@ -479,8 +485,8 @@ namespace ConsoleApp1
                 }
             }
 
-            
-            
+
+
             return result;
         }
 
@@ -511,21 +517,27 @@ namespace ConsoleApp1
             if (selectedPlayer.Position == 0)
             {
                 selectedPlayer.Hands[0][0].FaceUp = true;
-                ShowBoardState(game);
+                while (selectedPlayer.EvaluateHand(0) < 17)
+                {
+                    game.CurrentPlayer = game.Participants.Count - 1;
+                    ShowBoardState(game);
+                    game.CurrentPlayer = 0;
 
-                if (selectedPlayer.EvaluateHand(0) < 17)
-                {
-                    Console.WriteLine("The dealer is on: " + selectedPlayer.EvaluateHand(0) + "and will draw another card");
+                    Console.WriteLine("The dealer is on: " + selectedPlayer.EvaluateHand(0) + " and will draw another card");
                     Console.WriteLine("Press any key to continue...");
+                    selectedPlayer.Hands[0].Add(game.DealersDeck.Draw());
                     Console.ReadKey();
                 }
-                else
-                {
-                    Console.WriteLine("The dealer is on: " + selectedPlayer.EvaluateHand(0));
-                    Console.WriteLine("Press any key to continue to results...");
-                    Console.ReadKey();
-                    return;
-                }
+
+                game.CurrentPlayer = game.Participants.Count - 1;
+                ShowBoardState(game);
+                game.CurrentPlayer = 0;
+                Console.WriteLine("The dealer is on: " + selectedPlayer.EvaluateHand(0));
+                Console.WriteLine("Press any key to continue to results...");
+                Console.ReadKey();
+                return;
+
+
             }
             else
             {
