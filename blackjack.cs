@@ -41,8 +41,8 @@ namespace ConsoleApp1
                         Console.WriteLine("You dont have enough credits");
                     }
                 }
-                validBet = true;                
-                foreach(Player player in blackJackSession.Participants)
+                validBet = true;
+                foreach (Player player in blackJackSession.Participants)
                 {
                     player.ClearCards();
                 }
@@ -53,10 +53,7 @@ namespace ConsoleApp1
                     //new round
                 }
                 Display.PlayerActions(blackJackSession);
-
-
-
-
+                Display.Results(blackJackSession);
             }
         }
 
@@ -421,6 +418,7 @@ namespace ConsoleApp1
             PrintCentered("Remaining Credits: " + game.Participants[game.CurrentPlayer].Currency);
             PrintArray(OtherPlayersInfo(game).Split('#'));
             Console.WriteLine(Line);
+            Console.WriteLine("Press any key to continue...");
             Console.ReadKey();
         }
 
@@ -464,12 +462,12 @@ namespace ConsoleApp1
 
         public string OtherPlayersInfo(Game game)
         {
-            string result = "  ";
+            string result = "";
             foreach (Player player in game.Participants)
             {
                 if (!(player.Position == 0 || player.Position == game.CurrentPlayer))
                 {
-                    result += "   #" + player.Name.ToUpper() + ":";
+                    result += "#" + player.Name.ToUpper() + ":";
                     for (int i = 0; i < player.ActiveHands; i++)
                     {
                         foreach (Card card in player.Hands[i])
@@ -477,10 +475,12 @@ namespace ConsoleApp1
                             result += card.Name + ", ";
                         }
                     }
+                    result = result.Substring(0, result.Length - 2);
                 }
             }
 
-            result = result.Substring(0, result.Length - 2);
+            
+            
             return result;
         }
 
@@ -492,10 +492,12 @@ namespace ConsoleApp1
                 if (game.CurrentPlayer == game.Participants.Count - 1)
                 {
                     game.CurrentPlayer = 0;
+                    TakeAction(game);
                 }
                 else
                 {
                     game.CurrentPlayer += 1;
+                    ShowBoardState(game);
                 }
             }
         }
@@ -506,60 +508,86 @@ namespace ConsoleApp1
             string input = "";
             selectedPlayer.HandsAreSet[0] = false;
             int hand = selectedPlayer.NextAvaliableHand();
-            while (hand >= 0)
+            if (selectedPlayer.Position == 0)
+            {
+                selectedPlayer.Hands[0][0].FaceUp = true;
+                ShowBoardState(game);
+
+                if (selectedPlayer.EvaluateHand(0) < 17)
+                {
+                    Console.WriteLine("The dealer is on: " + selectedPlayer.EvaluateHand(0) + "and will draw another card");
+                    Console.WriteLine("Press any key to continue...");
+                    Console.ReadKey();
+                }
+                else
+                {
+                    Console.WriteLine("The dealer is on: " + selectedPlayer.EvaluateHand(0));
+                    Console.WriteLine("Press any key to continue to results...");
+                    Console.ReadKey();
+                    return;
+                }
+            }
+            else
             {
 
-                string actions = AvaliableActions(selectedPlayer, hand);
-                bool validateInput = false;
-
-                Console.WriteLine("you are on " + selectedPlayer.EvaluateHand(hand) + " Points");
-                while (!validateInput)
+                while (hand >= 0)
                 {
-                    Console.WriteLine("||" + selectedPlayer.Name + "||" + " what would you like to do?");
-                    Console.WriteLine(actions);
 
-                    input = Console.ReadLine();
-                    foreach (string s in actions.Split(','))
+                    string actions = AvaliableActions(selectedPlayer, hand);
+                    bool validateInput = false;
+
+                    Console.WriteLine("you are on " + selectedPlayer.EvaluateHand(hand) + " Points");
+                    while (!validateInput)
                     {
-                        if (input.ToLower().Contains(s.Trim()))
+                        Console.WriteLine("||" + selectedPlayer.Name + "||" + " what would you like to do?");
+                        Console.WriteLine(actions);
+
+                        input = Console.ReadLine();
+                        foreach (string s in actions.Split(','))
                         {
-                            validateInput = true;
+                            if (input.ToLower().Contains(s.Trim()))
+                            {
+                                validateInput = true;
+                            }
                         }
                     }
+
+                    switch (input.ToLower())
+                    {
+                        case "stand":
+                            selectedPlayer.HandsAreSet[hand] = true;
+                            break;
+                        case "hit":
+                            selectedPlayer.Hands[hand].Add(game.DealersDeck.Draw());
+                            break;
+                        case "double":
+                            selectedPlayer.Hands[hand].Add(game.DealersDeck.Draw());
+                            selectedPlayer.HandsAreSet[hand] = true;
+                            break;
+                        case "split":
+                            selectedPlayer.HandsAreSet[hand + 1] = false;
+                            selectedPlayer.Hands[hand + 1].Add(selectedPlayer.Hands[hand][selectedPlayer.Hands[hand].Count - 1]);
+                            selectedPlayer.Hands[hand + 1].Add(game.DealersDeck.Draw());
+                            selectedPlayer.Hands[hand].Remove(selectedPlayer.Hands[hand][selectedPlayer.Hands[hand].Count - 1]);
+                            selectedPlayer.Hands[hand].Add(game.DealersDeck.Draw());
+
+                            break;
+                        case "surender":
+                            selectedPlayer.Hands[0].Clear();
+                            selectedPlayer.Currency += selectedPlayer.Bet / 2;
+                            selectedPlayer.HandsAreSet[hand] = true;
+                            break;
+                    }
+
+                    if (selectedPlayer.EvaluateHand(hand) > 21.5)
+                    {
+                        selectedPlayer.HandsAreSet[hand] = true;
+                    }
+
+
+                    ShowBoardState(game);
+                    hand = selectedPlayer.NextAvaliableHand();
                 }
-
-                switch (input.ToLower())
-                {
-                    case "stand":
-                        selectedPlayer.HandsAreSet[hand] = true;                        
-                        break;
-                    case "hit":
-                        selectedPlayer.Hands[hand].Add(game.DealersDeck.Draw());
-                        break;
-                    case "double":
-                        selectedPlayer.Hands[hand].Add(game.DealersDeck.Draw());
-                        selectedPlayer.HandsAreSet[hand] = true;                        
-                        break;
-                    case "split":
-                        selectedPlayer.HandsAreSet[hand + 1] = false;
-                        selectedPlayer.Hands[hand].Add(game.DealersDeck.Draw());
-                        selectedPlayer.Hands[hand + 1].Add(game.DealersDeck.Draw());
-                        break;
-                    case "surender":
-                        selectedPlayer.Hands[0].Clear();
-                        selectedPlayer.Currency += selectedPlayer.Bet / 2;
-                        selectedPlayer.HandsAreSet[hand] = true;                        
-                        break;
-                }
-
-                if (selectedPlayer.EvaluateHand(hand) > 21.5)
-                {
-                    selectedPlayer.HandsAreSet[hand] = true;
-                }
-
-
-                ShowBoardState(game);
-                hand = selectedPlayer.NextAvaliableHand();
             }
         }
 
@@ -578,6 +606,52 @@ namespace ConsoleApp1
             }
 
             return result;
+        }
+
+        public void Results(Game game)
+        {
+            Console.WriteLine(Line);
+            PrintCentered("RESULTS");
+            bool bust = false;
+            if (game.Participants[0].EvaluateHand(0) > 21.5)
+            {
+                PrintCentered("Dealer`s hand is Bust");
+                bust = true;
+            }
+            else
+            {
+                PrintCentered("Dealer has " + game.Participants[0].EvaluateHand(0));
+            }
+
+            PrintCentered("");
+            foreach (Player player in game.Participants)
+            {
+                if (player.Position != 0)
+                {
+                    PrintCentered("||" + player.Name + "||");
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (player.Hands[i].Count > 0)
+                        {
+                            if (player.EvaluateHand(i) > 21.5)
+                            {
+                                PrintCentered("Hand Value: " + player.EvaluateHand(i) + " Hand is bust, dealer takes bet");
+                            }
+                            else if (player.EvaluateHand(i) > game.Participants[0].EvaluateHand(0) || bust)
+                            {
+                                PrintCentered("Hand Value: " + player.EvaluateHand(i) + " WINNER!! +" + player.Bet + " Credits");
+                            }
+                            else
+                            {
+                                PrintCentered("Hand Value: " + player.EvaluateHand(i) + " Dealer winns");
+                            }
+                        }
+                    }
+                }
+                PrintCentered("");
+            }
+            Console.WriteLine(Line);
+            Console.ReadKey();
         }
 
         public void Heading()
@@ -829,7 +903,6 @@ namespace ConsoleApp1
                 {
                     return "K" + Suit.Substring(0, 1).ToUpper();
                 }
-
             }
         }
         public Card()
